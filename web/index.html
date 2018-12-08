@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RSA-TEST</title>
+    <link rel="stylesheet" href="lib/bootstrap/css/bootstrap.min.css">
+    <script src="lib/jquery.min.js"></script>
+    <script src="lib/bootstrap/js/bootstrap.min.js"></script>
+    <script src="lib/jsencrypt.min.js"></script>
+    <style type="text/css">
+        .col-center-block {
+            float: none;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div>
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <a class="navbar-brand" href="#">RSA - TEST</a>
+                </div>
+            </div>
+        </nav>
+    </div>
+
+    <div class="col-lg-12 col-center-block">
+        <div class="col-lg-10 col-center-block">
+            <div>
+                <label class="col-lg-6">origin text：</label>
+                <textarea id="input_origin_text" class="form-control" placeholder="Input the origin text."
+                          rows="3"></textarea>
+            </div>
+
+            <div class="btn-group">
+                <button id="btn_test" type="button" class="btn btn-default">
+                    test
+                </button>
+
+                <button id="btn_clear" type="button" class="btn btn-default">
+                    clear
+                </button>
+            </div>
+
+            <br>
+            <br>
+            <br>
+
+            <div>
+                <label class="col-lg-6">encrypted text (by client / JavaScript)：</label>
+                <textarea id="input_encrypted_text" class="form-control" rows="5"></textarea>
+            </div>
+
+            <br>
+
+            <div>
+                <label class="col-lg-6">decrypted text (by server / Java)：</label>
+                <textarea id="input_decrypted_text_server" class="form-control" rows="5"></textarea>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="text/javascript">
+        var btnClear;
+        var btnTest;
+        var txtOrigin;
+        var txtEncrypted;
+        var txtDecryptedServer;
+
+
+        $(document).ready(function () {
+            btnClear = $("#btn_clear");
+            btnTest = $("#btn_test");
+            txtOrigin = $("#input_origin_text");
+            txtEncrypted = $("#input_encrypted_text");
+            txtDecryptedServer = $("#input_decrypted_text_server");
+
+            btnClear.click(function () {
+                txtOrigin.val("");
+                txtEncrypted.val("");
+                txtDecryptedServer.val("");
+            });
+
+            btnTest.click(function () {
+                var href = window.location.href;
+                var protocol = href.substring(0, href.indexOf(":"));
+                var host_port = href.substring(href.indexOf(":") + 3, href.length);
+                var index = host_port.indexOf("/");
+                index = index === -1 ? host_port.length : index;
+                host_port = host_port.substring(0, index);
+                var baseUrl = protocol + "://" + host_port;
+
+                $.ajax({
+                    url: baseUrl + "/base/pub_key",
+                    type: "get",
+                    contentType: "application/json;charset=utf-8",
+                    timeout: 30000,
+                    xhrFields: {
+                        withCredentials: true
+                    },
+                    success: function (data) {
+                        if (!data || data === "") {
+                            alert("Public key acquire failed.");
+                        }
+
+                        //-------------------
+                        //-------------------
+                        var util = new JSEncrypt();
+                        util.setPublicKey(data);
+                        var encryptedText = util.encrypt(txtOrigin.val());
+                        //-------------------
+                        //-------------------
+
+
+                        txtEncrypted.val(encryptedText);
+                        $.ajax({
+                            url: baseUrl + "/base/upload",
+                            type: "post",
+                            contentType: "application/json;charset=utf-8",
+                            timeout: 30000,
+                            dataType: "json",
+                            data: JSON.stringify({"text": encryptedText}),
+                            xhrFields: {
+                                withCredentials: true
+                            },
+                            success: function (data) {
+                                if (!data || data === "") {
+                                    alert("Server decrypt failed.");
+                                }
+                                txtDecryptedServer.val(data);
+                            },
+                            error: function (jqXHR, textStatus) {
+                                if (jqXHR.responseText && jqXHR.responseText !== "") {
+                                    txtDecryptedServer.val(jqXHR.responseText);
+                                } else {
+                                    alert("Server decrypt failed.");
+                                }
+                            }
+                        });
+                    },
+                    error: function (jqXHR, textStatus) {
+                        alert("Public key acquire failed.");
+                    }
+                });
+            });
+        });
+    </script>
+</div>
+</body>
+</html>
